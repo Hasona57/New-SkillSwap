@@ -6,6 +6,21 @@
   <title>SkillSwap - Exchange Skills, Not Money</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Optional: Firebase SDKs for cloud sync across devices -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+  <script>
+    // To enable cloud sync, paste your Firebase web config object below and uncomment.
+    // Example:
+    // window.SKILLSWAP_FIREBASE_CONFIG = {
+    //   apiKey: "...",
+    //   authDomain: "...",
+    //   projectId: "...",
+    //   storageBucket: "...",
+    //   messagingSenderId: "...",
+    //   appId: "..."
+    // };
+  </script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
     
@@ -407,17 +422,17 @@
             <!-- Listings will be loaded here -->
                   </div>
                 </div>
-      </div>
-    </div>
-  </div>
-  
+                  </div>
+              </div>
+            </div>
+            
   <!-- Profile Page (placeholder) -->
   <div id="profile-page" class="page py-10 bg-gray-50">
     <div class="container mx-auto px-4">
       <div class="text-center text-gray-500">Loading profile...</div>
     </div>
   </div>
-
+  
   <!-- Messages Page -->
   <div id="messages-page" class="page py-10 bg-gray-50">
     <div class="container mx-auto px-4">

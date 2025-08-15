@@ -1,6 +1,7 @@
 // Global state
 let currentUser = null;
 let currentConversation = null;
+let db = null; // optional Firestore handle
 
 // Initialize localStorage with sample users only (no sample skills)
 function initializeData() {
@@ -62,11 +63,49 @@ function initializeData() {
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
   initializeData();
+  setupCloudIfConfigured();
   initializeApp();
   setupEventListeners();
   updateUIForAuthState();
   checkAuthState();
 });
+
+function setupCloudIfConfigured() {
+  try {
+    const cfg = window.SKILLSWAP_FIREBASE_CONFIG;
+    if (!cfg || typeof firebase === 'undefined') return;
+    if (!firebase.apps || firebase.apps.length === 0) {
+      firebase.initializeApp(cfg);
+    }
+    db = firebase.firestore();
+    // Initial pull of cloud data
+    pullCloudData();
+    // Listen for meta updates to refresh clients
+    db.collection('skillswap_meta').doc('snapshot').onSnapshot(() => {
+      pullCloudData();
+    });
+  } catch (e) {
+    console.warn('Cloud setup skipped:', e);
+    db = null;
+  }
+}
+
+function pullCloudData() {
+  if (!db) return;
+  Promise.all([
+    db.collection('skills').get(),
+    db.collection('users').get(),
+  ]).then(([skillsSnap, usersSnap]) => {
+    const cloudSkills = skillsSnap.docs.map(d => d.data());
+    const cloudUsers = usersSnap.docs.map(d => d.data());
+    if (Array.isArray(cloudSkills)) localStorage.setItem('skillswap_skills', JSON.stringify(cloudSkills));
+    if (Array.isArray(cloudUsers)) localStorage.setItem('skillswap_users', JSON.stringify(cloudUsers));
+    // Refresh any visible views
+    if (document.getElementById('listings-page')?.classList.contains('active')) loadListings();
+    if (document.getElementById('dashboard-page')?.classList.contains('active')) loadDashboard();
+    if (document.getElementById('profile-page')?.classList.contains('active')) loadProfile();
+  }).catch(err => console.warn('Cloud pull error', err));
+}
 
 // Initialize app functionality
 function initializeApp() {
@@ -366,6 +405,7 @@ function addSkill(title, category, description, location) {
   
   skills.push(newSkill);
   localStorage.setItem('skillswap_skills', JSON.stringify(skills));
+  notifyCloudCollectionsChanged();
   
   closeModal('add-skill-modal');
   document.getElementById('add-skill-form').reset();
@@ -401,6 +441,7 @@ function addRequest(title, category, description) {
   
   skills.push(newRequest);
   localStorage.setItem('skillswap_skills', JSON.stringify(skills));
+  notifyCloudCollectionsChanged();
   
   closeModal('add-request-modal');
   document.getElementById('add-request-form').reset();
@@ -1133,10 +1174,39 @@ function deleteSkill(skillId) {
     const skills = JSON.parse(localStorage.getItem('skillswap_skills') || '[]');
     const updatedSkills = skills.filter(skill => skill.id !== skillId);
     localStorage.setItem('skillswap_skills', JSON.stringify(updatedSkills));
+    notifyCloudCollectionsChanged();
     
     loadDashboard();
     loadListings();
     showNotification('Skill deleted successfully', 'success');
+  }
+}
+
+// If Firestore is configured, mirror local changes to cloud (simple approach)
+function notifyCloudCollectionsChanged() {
+  if (!db) return;
+  try {
+    const skills = JSON.parse(localStorage.getItem('skillswap_skills') || '[]');
+    const users = JSON.parse(localStorage.getItem('skillswap_users') || '[]');
+    // Replace collections (demo). For production, write per-doc.
+    const writeAll = async (colName, items) => {
+      const snap = await db.collection(colName).get();
+      const deletes = snap.docs.map(d => d.ref.delete());
+      await Promise.all(deletes);
+      await Promise.all(items.map(item => {
+        const id = item.id || db.collection(colName).doc().id;
+        item.id = id;
+        return db.collection(colName).doc(id).set(item);
+      }));
+    };
+    Promise.all([
+      writeAll('skills', skills),
+      writeAll('users', users)
+    ]).then(() => {
+      db.collection('skillswap_meta').doc('snapshot').set({ updatedAt: Date.now() });
+    });
+  } catch (e) {
+    console.warn('Cloud sync failed (still works locally):', e);
   }
 }
 
