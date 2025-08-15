@@ -358,6 +358,7 @@ function signup(name, email, password, location) {
   
   users.push(newUser);
   localStorage.setItem('skillswap_users', JSON.stringify(users));
+  notifyCloudCollectionsChanged();
   
   currentUser = newUser;
   localStorage.setItem('skillswap_currentUser', JSON.stringify(newUser));
@@ -1076,6 +1077,7 @@ function loadProfile() {
       currentUser.avatar = avatar;
       localStorage.setItem('skillswap_currentUser', JSON.stringify(currentUser));
       updateUIForAuthState();
+      notifyCloudCollectionsChanged();
       showNotification('Profile updated successfully', 'success');
       loadProfile();
     };
